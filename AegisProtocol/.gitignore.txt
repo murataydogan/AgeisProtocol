@@ -1,0 +1,28 @@
+# --- Unity-generated files ---
+Library/
+Logs/
+Temp/
+UserSettings/
+MemoryCaptures/
+Recordings/
+obj/
+Packages/
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+# --- Builds ---
+*.apk
+*.aab
+*.unitypackage
+*.app
