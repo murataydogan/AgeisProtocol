@@ -59,7 +59,9 @@ public class GameBootstrap : MonoBehaviour
         if (cam == null) return;
 
         // Isometric-style top-down view covering full 16x10 grid
-        cam.transform.position = new Vector3(8f, 18f, -2f);
+        // Izgara + portal + cekirdek ust HUD ile alt hotbar arasina sigar (16:9 icin hesaplandi)
+        cam.fieldOfView = 45f;
+        cam.transform.position = new Vector3(8f, 12.5f, -3f);
         cam.transform.rotation = Quaternion.Euler(62f, 0f, 0f);
         cam.backgroundColor = new Color(0.02f, 0.05f, 0.1f);
     }

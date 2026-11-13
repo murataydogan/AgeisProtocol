@@ -29,6 +29,16 @@ public class EnemyAI : MonoBehaviour
     [Header("Status Effects")]
     private float slowTimer = 0f;
 
+    // Aktif tum dusmanlar: kuleler Physics.OverlapSphere yerine bu listeyi tarar (GC ve collider mesafesi sorunu yok)
+    public static readonly List<EnemyAI> All = new List<EnemyAI>();
+
+    // Yol uzerinde kat edilen mesafe ve cekirdege kalan yol (A ve B rotalari icin karsilastirilabilir)
+    private float traveled = 0f;
+    private float totalPathLength = 0f;
+    public float RemainingDistance => totalPathLength - traveled;
+
+    private float activeSlow = 0f;
+
     public bool IsAlive => currentHealth > 0.01f;
 
     public void Setup(EnemyType type, List<Vector3> pathWaypoints)
@@ -38,10 +48,21 @@ public class EnemyAI : MonoBehaviour
         currentWaypointIndex = 0;
         reachedEnd = false;
 
+        traveled = 0f;
+        totalPathLength = 0f;
+        for (int i = 0; i < waypoints.Count - 1; i++)
+        {
+            Vector3 a = waypoints[i], b = waypoints[i + 1];
+            a.y = 0f; b.y = 0f;
+            totalPathLength += Vector3.Distance(a, b);
+        }
+
+        if (!All.Contains(this)) All.Add(this);
+
         switch (type)
         {
             case EnemyType.Swarmer:
-                maxHealth = 45f;
+                maxHealth = 90f;
                 armor = 0f;
                 baseSpeed = 1.6f;
                 coreDamagePerSec = 2;
@@ -51,7 +72,7 @@ public class EnemyAI : MonoBehaviour
                 break;
 
             case EnemyType.Stalker:
-                maxHealth = 70f;
+                maxHealth = 135f;
                 armor = 0f;
                 baseSpeed = 2.4f;
                 coreDamagePerSec = 4;
@@ -61,7 +82,7 @@ public class EnemyAI : MonoBehaviour
                 break;
 
             case EnemyType.Brute:
-                maxHealth = 320f;
+                maxHealth = 600f;
                 armor = 6f; // Has armor!
                 baseSpeed = 0.7f;
                 coreDamagePerSec = 8;
@@ -112,6 +133,7 @@ public class EnemyAI : MonoBehaviour
 
         if (dir.magnitude <= step)
         {
+            traveled += dir.magnitude;
             transform.position = target;
             currentWaypointIndex++;
             // Stop at cell (15,4) - 1 cell before core
@@ -122,6 +144,7 @@ public class EnemyAI : MonoBehaviour
         }
         else
         {
+            traveled += step;
             transform.position += dir.normalized * step;
             if (dir != Vector3.zero)
             {
@@ -139,7 +162,6 @@ public class EnemyAI : MonoBehaviour
             if (GameEconomy.Instance != null)
             {
                 GameEconomy.Instance.DamageCore(coreDamagePerSec);
-                Debug.Log($"{enemyType} hit Core for {coreDamagePerSec} damage!");
             }
             attackTimer = 0f;
         }
@@ -170,7 +192,9 @@ public class EnemyAI : MonoBehaviour
 
     public void ApplySlow(float slowPercent, float duration)
     {
-        currentSpeed = baseSpeed * (1f - slowPercent);
+        // Birden fazla Slow Tower etkisi toplanmaz; en yuksek olan gecerli (GDD kurali)
+        activeSlow = Mathf.Max(activeSlow, slowPercent);
+        currentSpeed = baseSpeed * (1f - activeSlow);
         slowTimer = duration;
     }
 
@@ -181,9 +205,15 @@ public class EnemyAI : MonoBehaviour
             slowTimer -= Time.deltaTime;
             if (slowTimer <= 0f)
             {
+                activeSlow = 0f;
                 currentSpeed = baseSpeed;
             }
         }
+    }
+
+    void OnDestroy()
+    {
+        All.Remove(this);
     }
 
     void Die()

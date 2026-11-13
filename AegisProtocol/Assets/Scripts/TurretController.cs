@@ -22,7 +22,7 @@ public class TurretController : MonoBehaviour
     [Header("Combat Stats")]
     public float damage = 10f;
     public float fireRate = 0.3f; // seconds between shots
-    public float range = 3.5f;
+    public float range = 3.0f;
     public float wearPerShot = 0.4f;
     public bool ignoreArmor = false;
 
@@ -67,7 +67,7 @@ public class TurretController : MonoBehaviour
                 repairCost = 15;
                 damage = (level == 1) ? 10f : 15f;
                 fireRate = 0.3f;
-                range = (level == 1) ? 3.5f : 4.0f;
+                range = (level == 1) ? 3.0f : 3.5f;
                 wearPerShot = 0.4f;
                 ignoreArmor = false;
                 break;
@@ -78,7 +78,7 @@ public class TurretController : MonoBehaviour
                 repairCost = 20;
                 damage = 0f;
                 fireRate = 0.5f;
-                range = (level == 1) ? 3.0f : 3.5f;
+                range = (level == 1) ? 2.0f : 2.5f;
                 wearPerShot = 0.5f; // 1.0 wear per second continuous
                 slowPercent = (level == 1) ? 0.40f : 0.55f;
                 ignoreArmor = false;
@@ -90,7 +90,7 @@ public class TurretController : MonoBehaviour
                 repairCost = 35;
                 damage = (level == 1) ? 65f : 100f;
                 fireRate = (level == 1) ? 2.0f : 1.8f;
-                range = 5.0f;
+                range = (level == 1) ? 3.5f : 4.0f;
                 wearPerShot = 5.0f;
                 ignoreArmor = true; // Ignores armor completely
                 break;
@@ -103,7 +103,8 @@ public class TurretController : MonoBehaviour
     {
         if (durability != null && durability.IsBroken) return;
 
-        fireTimer += Time.deltaTime;
+        // Hedef yokken zamanlayici en fazla bir atis kadar birikir (bosta bekleyen kule salvo atmasin)
+        fireTimer = Mathf.Min(fireTimer + Time.deltaTime, fireRate);
 
         if (turretType == TurretType.SlowTower)
         {
@@ -126,7 +127,7 @@ public class TurretController : MonoBehaviour
                 if (fireTimer >= fireRate)
                 {
                     Shoot(currentTarget);
-                    fireTimer = 0f;
+                    fireTimer -= fireRate; // artan sure kaybolmaz (dusuk FPS'te atis hizi sabit kalir)
                 }
             }
         }
@@ -134,28 +135,31 @@ public class TurretController : MonoBehaviour
 
     void AcquireTarget()
     {
-        // Find enemy closest to the Energy Core within range
-        Collider[] hits = Physics.OverlapSphere(transform.position, range);
-        EnemyAI bestCandidate = null;
-        float shortestDistToCore = float.MaxValue;
+        // Menzildeki, cekirdege YOL UZERINDEN en yakin dusmani hedefler (kus ucusu mesafe degil).
+        // Mesafe, dusmanin merkezine olan yatay mesafedir (collider yuzeyi degil).
+        EnemyAI best = null;
+        float bestRemaining = float.MaxValue;
+        float rangeSqr = range * range;
+        Vector3 p = transform.position;
+        var all = EnemyAI.All;
 
-        Vector3 corePos = new Vector3(16.5f, 0.5f, 4.5f);
-
-        foreach (var col in hits)
+        for (int i = 0; i < all.Count; i++)
         {
-            EnemyAI enemy = col.GetComponent<EnemyAI>();
-            if (enemy != null && enemy.IsAlive)
+            EnemyAI e = all[i];
+            if (e == null || !e.IsAlive) continue;
+
+            Vector3 d = e.transform.position - p;
+            d.y = 0f;
+            if (d.sqrMagnitude > rangeSqr) continue;
+
+            if (e.RemainingDistance < bestRemaining)
             {
-                float distToCore = Vector3.Distance(enemy.transform.position, corePos);
-                if (distToCore < shortestDistToCore)
-                {
-                    shortestDistToCore = distToCore;
-                    bestCandidate = enemy;
-                }
+                bestRemaining = e.RemainingDistance;
+                best = e;
             }
         }
 
-        currentTarget = bestCandidate;
+        currentTarget = best;
     }
 
     void Shoot(EnemyAI target)
@@ -177,20 +181,25 @@ public class TurretController : MonoBehaviour
 
     void ApplySlowAura()
     {
-        Collider[] hits = Physics.OverlapSphere(transform.position, range);
         bool hasEnemies = false;
+        float rangeSqr = range * range;
+        Vector3 p = transform.position;
+        var all = EnemyAI.All;
 
-        foreach (var col in hits)
+        for (int i = 0; i < all.Count; i++)
         {
-            EnemyAI enemy = col.GetComponent<EnemyAI>();
-            if (enemy != null && enemy.IsAlive)
-            {
-                enemy.ApplySlow(slowPercent, 0.5f);
-                hasEnemies = true;
-            }
+            EnemyAI enemy = all[i];
+            if (enemy == null || !enemy.IsAlive) continue;
+
+            Vector3 d = enemy.transform.position - p;
+            d.y = 0f;
+            if (d.sqrMagnitude > rangeSqr) continue;
+
+            enemy.ApplySlow(slowPercent, 0.5f);
+            hasEnemies = true;
         }
 
-        // If enemies are in range, consume durability (1.0 wear per second)
+        // Menzilde dusman varken saniyede 1.0 yipranma
         if (hasEnemies && durability != null)
         {
             durability.Consume(1.0f * Time.deltaTime);

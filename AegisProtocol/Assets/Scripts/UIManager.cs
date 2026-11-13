@@ -24,12 +24,22 @@ public class UIManager : MonoBehaviour
     public void ShowWarningAlert(string message, float duration = 4f)
     {
         alertMessage = message;
-        alertTimer   = duration;
+        alertTimer = duration;
+    }
+
+    // Arayuz dikdortgenleri (OnGUI koordinati, ust-sol orijin); fare bunlarin ustundeyse oyun alanina tiklanmaz
+    private Rect hudRect, hotbarRect, popupRect;
+
+    public bool IsPointerOverUI(Vector3 mousePos)
+    {
+        Vector2 p = new Vector2(mousePos.x, Screen.height - mousePos.y);
+        return hudRect.Contains(p) || hotbarRect.Contains(p) || popupRect.Contains(p);
     }
 
     // ─── OnGUI ──────────────────────────────────────────────────
     void OnGUI()
     {
+        popupRect = Rect.zero;
         EnsureStyles();
         DrawTopHUD();
         DrawBottomHotbar();
@@ -40,36 +50,37 @@ public class UIManager : MonoBehaviour
     // ─── 1. TOP HUD ─────────────────────────────────────────────
     void DrawTopHUD()
     {
-        int scrap       = GameEconomy.Instance != null ? GameEconomy.Instance.currentScrap   : 0;
-        int coreHP      = GameEconomy.Instance != null ? GameEconomy.Instance.coreHealth      : 100;
-        int score       = GameEconomy.Instance != null ? GameEconomy.Instance.totalScore      : 0;
-        int pending     = GameEconomy.Instance != null ? GameEconomy.Instance.wavePendingScore: 0;
-        int wave        = WaveManager.Instance  != null ? WaveManager.Instance.currentWaveIndex : 1;
-        bool prep       = WaveManager.Instance  != null && WaveManager.Instance.isPrepPhase;
-        float prepLeft  = WaveManager.Instance  != null ? WaveManager.Instance.prepTimer : 0f;
+        int scrap = GameEconomy.Instance != null ? GameEconomy.Instance.currentScrap : 0;
+        int coreHP = GameEconomy.Instance != null ? GameEconomy.Instance.coreHealth : 100;
+        int score = GameEconomy.Instance != null ? GameEconomy.Instance.totalScore : 0;
+        int pending = GameEconomy.Instance != null ? GameEconomy.Instance.wavePendingScore : 0;
+        int wave = WaveManager.Instance != null ? WaveManager.Instance.currentWaveIndex : 1;
+        bool prep = WaveManager.Instance != null && WaveManager.Instance.isPrepPhase;
+        float prepLeft = WaveManager.Instance != null ? WaveManager.Instance.prepTimer : 0f;
 
-        GUI.Box(new Rect(8, 8, Screen.width - 16, 52), GUIContent.none);
+        hudRect = new Rect(8, 8, Screen.width - 16, 52);
+        GUI.Box(hudRect, GUIContent.none);
         GUILayout.BeginArea(new Rect(18, 14, Screen.width - 36, 42));
         GUILayout.BeginHorizontal();
 
         // Scrap
         labelBold.normal.textColor = new Color(1f, 0.85f, 0.2f);
-        GUILayout.Label($"⚡ HURDA: {scrap}", labelBold, GUILayout.Width(160));
+        GUILayout.Label($"HURDA: {scrap}", labelBold, GUILayout.Width(160));
 
         // Core HP — goes red when low
         labelBold.normal.textColor = coreHP > 30 ? new Color(0.3f, 1f, 0.45f) : Color.red;
-        GUILayout.Label($"🛡 ÇEKIRDEK: {coreHP}/100", labelBold, GUILayout.Width(190));
+        GUILayout.Label($"ÇEKIRDEK: {coreHP}/100", labelBold, GUILayout.Width(190));
 
         // Wave + prep countdown
         labelBold.normal.textColor = Color.cyan;
         string waveText = prep
-            ? $"🌊 DALGA: {wave}/7   ⏳ Hazirlik: {Mathf.CeilToInt(prepLeft)}s  [SPACE: Basla]"
-            : $"🌊 DALGA: {wave}/7   ⚔ SAVAS SURUYOR!";
+            ? $"DALGA: {wave}/7   Hazirlik: {Mathf.CeilToInt(prepLeft)}s  [SPACE: Basla]"
+            : $"DALGA: {wave}/7   SAVAS SURUYOR!";
         GUILayout.Label(waveText, labelBold, GUILayout.Width(400));
 
         // Score
         labelBold.normal.textColor = Color.white;
-        string scoreText = pending > 0 ? $"🏆 SKOR: {score} (+{pending})" : $"🏆 SKOR: {score}";
+        string scoreText = pending > 0 ? $"SKOR: {score} (+{pending})" : $"SKOR: {score}";
         GUILayout.Label(scoreText, labelBold);
 
         GUILayout.EndHorizontal();
@@ -79,25 +90,26 @@ public class UIManager : MonoBehaviour
     // ─── 2. BOTTOM HOTBAR ───────────────────────────────────────
     void DrawBottomHotbar()
     {
-        float barW  = 740f;
-        float barH  = 68f;
-        float bx    = (Screen.width - barW) * 0.5f;
-        float by    = Screen.height - barH - 12f;
+        float barW = 740f;
+        float barH = 68f;
+        float bx = (Screen.width - barW) * 0.5f;
+        float by = Screen.height - barH - 12f;
 
-        GUI.Box(new Rect(bx, by, barW, barH), GUIContent.none);
+        hotbarRect = new Rect(bx, by, barW, barH);
+        GUI.Box(hotbarRect, GUIContent.none);
         GUILayout.BeginArea(new Rect(bx + 8, by + 8, barW - 16, barH - 16));
         GUILayout.BeginHorizontal();
 
-        DrawTurretBtn("[1] Machine Gun\n50 Hurda",  TurretType.MachineGun);
-        DrawTurretBtn("[2] Slow Tower\n75 Hurda",   TurretType.SlowTower);
-        DrawTurretBtn("[3] Laser Turret\n180 Hurda",TurretType.LaserTurret);
+        DrawTurretBtn("[1] Machine Gun\n50 Hurda", TurretType.MachineGun);
+        DrawTurretBtn("[2] Slow Tower\n75 Hurda", TurretType.SlowTower);
+        DrawTurretBtn("[3] Laser Turret\n180 Hurda", TurretType.LaserTurret);
 
         GUILayout.Space(16);
 
         GUILayout.BeginVertical();
         labelBold.normal.textColor = new Color(0.85f, 0.85f, 0.85f);
-        GUILayout.Label("🔧 [R] Tamir (1.5s)  |  [E] Lv.2 Yukselme  |  [X] Sat (%60 iade)", labelBold);
-        GUILayout.Label("🖱 Sag Tik: Secimi Iptal  |  Sol Tik: Kule Dik  |  Max Mesafe: 2 Hucre", labelBold);
+        GUILayout.Label("[R] Tamir (1.5s)  |  [E] Lv.2 Yukselme  |  [X] Sat (%60 iade)", labelBold);
+        GUILayout.Label("Sag Tik: Secimi Iptal  |  Sol Tik: Kule Dik  |  Max Mesafe: 2 Hucre", labelBold);
         GUILayout.EndVertical();
 
         GUILayout.EndHorizontal();
@@ -110,7 +122,7 @@ public class UIManager : MonoBehaviour
         bool canAfford = GameEconomy.Instance != null && GameEconomy.Instance.CanAfford(GetCost(type));
 
         Color prev = GUI.backgroundColor;
-        GUI.backgroundColor = selected  ? Color.cyan :
+        GUI.backgroundColor = selected ? Color.cyan :
                               !canAfford ? new Color(0.4f, 0.4f, 0.4f) : Color.white;
 
         if (GUILayout.Button(label, hotbarBtn, GUILayout.Width(136), GUILayout.Height(48)))
@@ -118,7 +130,7 @@ public class UIManager : MonoBehaviour
             if (BuildingManager.Instance != null)
             {
                 if (selected) BuildingManager.Instance.DeselectTurret();
-                else          BuildingManager.Instance.SelectTurret(type);
+                else BuildingManager.Instance.SelectTurret(type);
             }
         }
 
@@ -145,10 +157,11 @@ public class UIManager : MonoBehaviour
         float px = screenPos.x - popW * 0.5f;
         float py = Screen.height - screenPos.y - popH * 0.5f;
 
-        px = Mathf.Clamp(px, 4f, Screen.width  - popW - 4f);
+        px = Mathf.Clamp(px, 4f, Screen.width - popW - 4f);
         py = Mathf.Clamp(py, 4f, Screen.height - popH - 4f);
 
-        GUI.Box(new Rect(px, py, popW, popH), GUIContent.none, popupStyle);
+        popupRect = new Rect(px, py, popW, popH);
+        GUI.Box(popupRect, GUIContent.none, popupStyle);
 
         GUILayout.BeginArea(new Rect(px + 10, py + 8, popW - 20, popH - 16));
 
@@ -157,7 +170,7 @@ public class UIManager : MonoBehaviour
         GUILayout.Label($"{tc.turretType}  Lv.{tc.level}", labelBold);
 
         labelBold.normal.textColor = Color.white;
-        float dur    = tc.durability != null ? tc.durability.currentDurability : 100f;
+        float dur = tc.durability != null ? tc.durability.currentDurability : 100f;
         float maxDur = tc.durability != null ? tc.durability.maxDurability : 100f;
         GUILayout.Label($"Dayaniklilik: {dur:0}/{maxDur:0}", labelBold);
 
@@ -214,17 +227,17 @@ public class UIManager : MonoBehaviour
 
         labelBold = new GUIStyle(GUI.skin.label)
         {
-            fontSize   = 15,
-            fontStyle  = FontStyle.Bold,
-            alignment  = TextAnchor.MiddleLeft
+            fontSize = 15,
+            fontStyle = FontStyle.Bold,
+            alignment = TextAnchor.MiddleLeft
         };
         labelBold.normal.textColor = Color.white;
 
         alertStyle = new GUIStyle(GUI.skin.label)
         {
-            fontSize   = 36,
-            fontStyle  = FontStyle.Bold,
-            alignment  = TextAnchor.MiddleCenter
+            fontSize = 36,
+            fontStyle = FontStyle.Bold,
+            alignment = TextAnchor.MiddleCenter
         };
         alertStyle.normal.textColor = Color.red;
 
@@ -232,9 +245,9 @@ public class UIManager : MonoBehaviour
 
         hotbarBtn = new GUIStyle(GUI.skin.button)
         {
-            fontSize   = 13,
-            fontStyle  = FontStyle.Bold,
-            alignment  = TextAnchor.MiddleCenter
+            fontSize = 13,
+            fontStyle = FontStyle.Bold,
+            alignment = TextAnchor.MiddleCenter
         };
     }
 }

@@ -54,11 +54,19 @@ public class BuildingManager : MonoBehaviour
     {
         if (Camera.main == null) return;
 
-        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
         GridCell hoveredCell = null;
 
-        if (Physics.Raycast(ray, out RaycastHit hit, 100f))
-            hoveredCell = hit.collider.GetComponent<GridCell>();
+        // Fare arayuzun uzerindeyken hucre secme (tiklama arayuzden gecip kule dikmesin)
+        bool overUI = UIManager.Instance != null && UIManager.Instance.IsPointerOverUI(Input.mousePosition);
+
+        if (!overUI && GridManager.Instance != null)
+        {
+            // Kule, dusman, hurda collider'lari isin onunu kesmesin diye zemin duzlemiyle (y=0.2) kesistiriyoruz
+            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+            Plane ground = new Plane(Vector3.up, new Vector3(0f, 0.2f, 0f));
+            if (ground.Raycast(ray, out float dist))
+                hoveredCell = GridManager.Instance.GetCellFromWorldPos(ray.GetPoint(dist));
+        }
 
         if (hoveredCell != currentHoveredCell)
         {
@@ -99,7 +107,8 @@ public class BuildingManager : MonoBehaviour
             return;
         }
 
-        if (Input.GetMouseButtonDown(0) && selectedTurretIndex >= 0 && currentHoveredCell != null)
+        if (Input.GetMouseButtonDown(0) && selectedTurretIndex >= 0 && currentHoveredCell != null
+            && !(UIManager.Instance != null && UIManager.Instance.IsPointerOverUI(Input.mousePosition)))
             TryBuildTurret(currentHoveredCell, (TurretType)selectedTurretIndex);
     }
 
@@ -172,17 +181,17 @@ public class BuildingManager : MonoBehaviour
 
     int GetTurretCost(TurretType type) => type switch
     {
-        TurretType.MachineGun  => 50,
-        TurretType.SlowTower   => 75,
+        TurretType.MachineGun => 50,
+        TurretType.SlowTower => 75,
         TurretType.LaserTurret => 180,
         _ => 0
     };
 
     Color GetTurretColor(TurretType type) => type switch
     {
-        TurretType.MachineGun  => new Color(0.85f, 0.85f, 0.85f), // Gray-Silver
-        TurretType.SlowTower   => new Color(0.2f,  0.75f, 1f),    // Ice Blue
-        TurretType.LaserTurret => new Color(1f,    0.3f,  0.3f),   // Red
+        TurretType.MachineGun => new Color(0.85f, 0.85f, 0.85f), // Gray-Silver
+        TurretType.SlowTower => new Color(0.2f, 0.75f, 1f),    // Ice Blue
+        TurretType.LaserTurret => new Color(1f, 0.3f, 0.3f),   // Red
         _ => Color.white
     };
 }

@@ -10,6 +10,9 @@ public class GridManager : MonoBehaviour
     public int height = 10;
     public float cellSize = 1.0f;
 
+    [Header("Spawn Protection")]
+    public float spawnNoBuildRadius = 2.0f; // Portal ve Kirmizi Kapi etrafinda kule dikilemez (spawn camp engeli)
+
     [Header("Special Objects")]
     public Transform portalTransform;
     public Transform redGateTransform;
@@ -113,8 +116,27 @@ public class GridManager : MonoBehaviour
 
         SpawnSpecialLandmarks();
         BuildWaypoints();
+        ApplySpawnProtection();
 
         Debug.Log("Aegis Protocol Map initialized successfully according to GDD!");
+    }
+
+    void ApplySpawnProtection()
+    {
+        Vector2[] spawns = { new Vector2(0.5f, 2.5f), new Vector2(0.5f, 8.5f) };
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                GridCell c = gridMatrix[x, y];
+                if (c == null || c.cellType != CellType.Buildable) continue;
+                Vector2 center = new Vector2(x + 0.5f, y + 0.5f);
+                foreach (Vector2 s in spawns)
+                {
+                    if (Vector2.Distance(center, s) <= spawnNoBuildRadius) { c.blockedBySpawn = true; break; }
+                }
+            }
+        }
     }
 
     void AddPathIndicator(GameObject parentCell, CellType type)

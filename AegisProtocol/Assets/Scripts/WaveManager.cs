@@ -103,7 +103,7 @@ public class WaveManager : MonoBehaviour
             yield return StartCoroutine(SpawnWaveEnemies(wave));
 
             // Wait for all enemies to die
-            while (FindObjectsByType<EnemyAI>(FindObjectsInactive.Exclude, FindObjectsSortMode.None).Length > 0)
+            while (EnemyAI.All.Count > 0)
             {
                 yield return new WaitForSeconds(0.5f);
             }
@@ -141,10 +141,25 @@ public class WaveManager : MonoBehaviour
 
     List<EnemyType> BuildEnemyQueue(int swarmers, int stalkers, int brutes)
     {
+        // Dusmanlar ic ice dogar (Brute'lar suruyle karisik gelir); once hepsi Swarmer, sonra Stalker, en son Brute
+        // seklinde siralamak dengeyi cok kolaylastirir.
         List<EnemyType> queue = new List<EnemyType>();
-        for (int i = 0; i < swarmers; i++) queue.Add(EnemyType.Swarmer);
-        for (int i = 0; i < stalkers; i++) queue.Add(EnemyType.Stalker);
-        for (int i = 0; i < brutes; i++) queue.Add(EnemyType.Brute);
+        EnemyType[] pattern =
+        {
+            EnemyType.Swarmer, EnemyType.Swarmer, EnemyType.Stalker, EnemyType.Swarmer,
+            EnemyType.Brute, EnemyType.Swarmer, EnemyType.Stalker
+        };
+
+        int sw = swarmers, st = stalkers, br = brutes;
+        while (sw + st + br > 0)
+        {
+            foreach (EnemyType t in pattern)
+            {
+                if (t == EnemyType.Swarmer && sw > 0) { queue.Add(t); sw--; }
+                else if (t == EnemyType.Stalker && st > 0) { queue.Add(t); st--; }
+                else if (t == EnemyType.Brute && br > 0) { queue.Add(t); br--; }
+            }
+        }
         return queue;
     }
 

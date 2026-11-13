@@ -15,12 +15,13 @@ public class GridCell : MonoBehaviour
     public int gridY;
     public CellType cellType;
     public GameObject placedTurret;
+    public bool blockedBySpawn = false; // Portal/Kirmizi Kapi etrafinda insa yasagi
 
     private Renderer cellRenderer;
     private Color defaultColor;
     private Color hoverColor = new Color(0.35f, 0.85f, 1f, 1f);
 
-    public bool IsBuildable => cellType == CellType.Buildable && placedTurret == null;
+    public bool IsBuildable => cellType == CellType.Buildable && placedTurret == null && !blockedBySpawn;
 
     public void Initialize(int x, int y, CellType type, Color color)
     {
