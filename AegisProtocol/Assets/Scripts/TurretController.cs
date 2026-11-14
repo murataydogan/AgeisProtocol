@@ -174,6 +174,7 @@ public class TurretController : MonoBehaviour
 
         // Deal damage directly or spawn projectile
         target.TakeDamage(damage, ignoreArmor);
+        AegisAudio.Play(turretType == TurretType.LaserTurret ? "laser_shot" : "mg_shot", turretType == TurretType.LaserTurret ? 0.55f : 0.3f);
 
         // Visual bullet tracer / beam effect
         DrawTracer(transform.position + Vector3.up * 0.5f, target.transform.position + Vector3.up * 0.5f);
@@ -232,6 +233,9 @@ public class TurretController : MonoBehaviour
         {
             level = 2;
             ConfigureStats();
+            AegisAudio.Play("upgrade", 0.7f, false);
+            Transform visual = transform.Find("Visual"); // model varsa Lv.2'de biraz buyur
+            if (visual != null) visual.localScale *= 1.12f;
             Debug.Log($"Turret upgraded to Level 2! Damage/Range increased.");
             return true;
         }
@@ -247,6 +251,7 @@ public class TurretController : MonoBehaviour
             GameEconomy.Instance.AddScrap(refundAmount);
         }
 
+        AegisAudio.Play("sell", 0.7f, false);
         Destroy(gameObject);
         return refundAmount;
     }
@@ -258,6 +263,7 @@ public class TurretController : MonoBehaviour
         if (GameEconomy.Instance != null && GameEconomy.Instance.SpendScrap(repairCost))
         {
             durability.RepairFull();
+            AegisAudio.Play("repair", 0.7f, false);
             return true;
         }
         return false;

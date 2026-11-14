@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections;
 using System.Collections.Generic;
 
 public class GridManager : MonoBehaviour
@@ -23,6 +24,11 @@ public class GridManager : MonoBehaviour
     public List<Vector3> waypointsPathB = new List<Vector3>();
 
     private GridCell[,] gridMatrix;
+
+    // Kirmizi Kapi: 5. dalgaya kadar sonuk, 4. dalga bitince yanip soner, sonra tam parlak
+    private Renderer redGateRenderer;
+    private Light redGateLight;
+    private bool redGateActive = false;
 
     // GDD Color Palette
     private readonly Color colorBuildable = new Color(0.22f, 0.74f, 0.97f); // Grid Cyan #38BDF8
@@ -178,6 +184,10 @@ public class GridManager : MonoBehaviour
             r.material = new Material(r.sharedMaterial);
             r.material.color = new Color(0.2f, 0.35f, 0.5f);
         }
+
+        // Kaya modeli varsa kristal silindiri gizlenir, model kaya hucresinin ustune oturur
+        if (ModelLibrary.Attach(parentCell, "rock") != null && r != null)
+            r.enabled = false;
     }
 
     void SpawnSpecialLandmarks()
@@ -202,6 +212,9 @@ public class GridManager : MonoBehaviour
         redGate.GetComponent<Renderer>().material.color = colorRedGate;
         AddLight(redGate, colorRedGate, 4f, 2.5f);
         redGateTransform = redGate.transform;
+        redGateRenderer = redGate.GetComponent<Renderer>();
+        redGateLight = redGate.GetComponentInChildren<Light>();
+        SetRedGateGlow(0.25f);
 
         // 3. Energy Core (16, 4) - 100 HP Target
         GameObject core = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
@@ -212,6 +225,35 @@ public class GridManager : MonoBehaviour
         core.GetComponent<Renderer>().material.color = colorCore;
         AddLight(core, colorCore, 7f, 3.5f);
         coreTransform = core.transform;
+        ModelLibrary.Attach(core, "core");
+    }
+
+    void SetRedGateGlow(float k)
+    {
+        if (redGateRenderer != null)
+            redGateRenderer.material.color = new Color(colorRedGate.r * k, colorRedGate.g * k, colorRedGate.b * k, 1f);
+        if (redGateLight != null)
+            redGateLight.intensity = 2.5f * k;
+    }
+
+    public void ActivateRedGate()
+    {
+        if (redGateActive) return;
+        redGateActive = true;
+        AegisAudio.Play("gate_open", 1f, false);
+        StartCoroutine(BlinkRedGate());
+    }
+
+    IEnumerator BlinkRedGate()
+    {
+        for (int i = 0; i < 8; i++)
+        {
+            SetRedGateGlow(1.6f);
+            yield return new WaitForSeconds(0.3f);
+            SetRedGateGlow(0.25f);
+            yield return new WaitForSeconds(0.3f);
+        }
+        SetRedGateGlow(1f);
     }
 
     void AddLight(GameObject parent, Color lightColor, float range, float intensity)

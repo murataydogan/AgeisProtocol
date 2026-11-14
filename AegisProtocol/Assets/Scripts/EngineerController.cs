@@ -33,6 +33,7 @@ public class EngineerController : MonoBehaviour
 
     private void Update()
     {
+        if (GameMenu.IsMenuOpen) return;
         HandleMovement();
         HandleTurretInteractions();
     }

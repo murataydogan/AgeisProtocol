@@ -13,12 +13,76 @@ public class UIManager : MonoBehaviour
     private GUIStyle alertStyle;
     private GUIStyle popupStyle;
     private GUIStyle hotbarBtn;
+    private GUIStyle bannerStyle;
+    private GUIStyle coreAlertStyle;
+
+    // Cekirdek hasar uyarisi
+    private int lastCoreHP = -1;
+    private float coreHitTimer = 0f;
+    private int recentLoss = 0;
+    private float floatTimer = 0f;
+    private int floatDmg = 0;
     private bool stylesReady = false;
+
+    // Skor sayimi (count-up) ve "Dalga Tamamlandi" mesaji
+    private float displayScore = 0f;
+    private float countRate = 400f;
+    private int seenCommit = 0;
+    private float bannerTimer = 0f;
+    private string bannerText = "";
 
     void Awake()
     {
         if (Instance == null) Instance = this;
         else Destroy(gameObject);
+    }
+
+    void Start()
+    {
+        if (GameEconomy.Instance != null)
+        {
+            lastCoreHP = GameEconomy.Instance.coreHealth;
+            GameEconomy.Instance.OnCoreHealthChanged += OnCoreHealthChanged;
+        }
+    }
+
+    void OnDestroy()
+    {
+        if (GameEconomy.Instance != null)
+            GameEconomy.Instance.OnCoreHealthChanged -= OnCoreHealthChanged;
+    }
+
+    void OnCoreHealthChanged(int hp)
+    {
+        int dmg = lastCoreHP - hp;
+        lastCoreHP = hp;
+        if (dmg <= 0) return;
+
+        // Saldiri suruyorsa kayip toplanir, yeni saldiri serisinde sifirdan baslar
+        recentLoss = coreHitTimer > 0f ? recentLoss + dmg : dmg;
+        coreHitTimer = 1.5f;
+        floatDmg = dmg;
+        floatTimer = 1f;
+    }
+
+    void Update()
+    {
+        if (coreHitTimer > 0f) coreHitTimer -= Time.deltaTime;
+        if (floatTimer > 0f) floatTimer -= Time.deltaTime;
+
+        GameEconomy eco = GameEconomy.Instance;
+        if (eco == null) return;
+
+        if (eco.commitCounter != seenCommit)
+        {
+            seenCommit = eco.commitCounter;
+            countRate = Mathf.Max(150f, eco.lastWaveCommit / 1.5f); // ~1,5 sn'de sayar
+            bannerText = $"DALGA {eco.lastCommitWave} TAMAMLANDI  +{eco.lastWaveCommit}";
+            bannerTimer = 3f;
+        }
+
+        displayScore = Mathf.MoveTowards(displayScore, eco.totalScore, countRate * Time.deltaTime);
+        if (bannerTimer > 0f) bannerTimer -= Time.deltaTime;
     }
 
     public void ShowWarningAlert(string message, float duration = 4f)
@@ -41,10 +105,16 @@ public class UIManager : MonoBehaviour
     {
         popupRect = Rect.zero;
         EnsureStyles();
+
+        bool prevEnabled = GUI.enabled;
+        GUI.enabled = !GameMenu.IsMenuOpen; // menu aciksa HUD butonlari tiklanmaz
         DrawTopHUD();
         DrawBottomHotbar();
         DrawTurretInteractPopup();
         DrawAlert();
+        DrawWaveBanner();
+        DrawCoreAlert();
+        GUI.enabled = prevEnabled;
     }
 
     // ─── 1. TOP HUD ─────────────────────────────────────────────
@@ -52,7 +122,7 @@ public class UIManager : MonoBehaviour
     {
         int scrap = GameEconomy.Instance != null ? GameEconomy.Instance.currentScrap : 0;
         int coreHP = GameEconomy.Instance != null ? GameEconomy.Instance.coreHealth : 100;
-        int score = GameEconomy.Instance != null ? GameEconomy.Instance.totalScore : 0;
+        int score = Mathf.RoundToInt(displayScore);
         int pending = GameEconomy.Instance != null ? GameEconomy.Instance.wavePendingScore : 0;
         int wave = WaveManager.Instance != null ? WaveManager.Instance.currentWaveIndex : 1;
         bool prep = WaveManager.Instance != null && WaveManager.Instance.isPrepPhase;
@@ -69,6 +139,8 @@ public class UIManager : MonoBehaviour
 
         // Core HP — goes red when low
         labelBold.normal.textColor = coreHP > 30 ? new Color(0.3f, 1f, 0.45f) : Color.red;
+        if (coreHitTimer > 0f && Mathf.PingPong(Time.time * 6f, 1f) > 0.5f)
+            labelBold.normal.textColor = Color.white; // hasar alirken cubuk yanip soner
         GUILayout.Label($"ÇEKIRDEK: {coreHP}/100", labelBold, GUILayout.Width(190));
 
         // Wave + prep countdown
@@ -217,6 +289,54 @@ public class UIManager : MonoBehaviour
         }
     }
 
+    void DrawCoreAlert()
+    {
+        if (GameStateManager.Instance != null && GameStateManager.Instance.IsEnded) return;
+
+        if (coreHitTimer > 0f)
+        {
+            float pulse = 0.5f + 0.5f * Mathf.Sin(Time.time * 10f);
+            float fade = Mathf.Clamp01(coreHitTimer / 0.5f);
+            float a = (0.25f + 0.25f * pulse) * fade;
+            float th = 36f;
+
+            Color prev = GUI.color;
+            GUI.color = new Color(1f, 0.1f, 0.1f, a);
+            GUI.DrawTexture(new Rect(0, 0, Screen.width, th), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(0, Screen.height - th, Screen.width, th), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(0, 0, th, Screen.height), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(Screen.width - th, 0, th, Screen.height), Texture2D.whiteTexture);
+            GUI.color = prev;
+
+            Color tc = coreAlertStyle.normal.textColor; tc.a = fade;
+            coreAlertStyle.normal.textColor = tc;
+            GUI.Label(new Rect(0, 68f, Screen.width, 44f), $"ÇEKİRDEK SALDIRI ALTINDA!   -{recentLoss} HP", coreAlertStyle);
+        }
+
+        // Cekirdegin ustunde yukari kayan "-N"
+        if (floatTimer > 0f && Camera.main != null && GridManager.Instance != null && GridManager.Instance.coreTransform != null)
+        {
+            Vector3 sp = Camera.main.WorldToScreenPoint(GridManager.Instance.coreTransform.position + Vector3.up * 1.5f);
+            if (sp.z > 0f)
+            {
+                float rise = (1f - floatTimer) * 50f;
+                Color fc = new Color(1f, 0.25f, 0.25f, Mathf.Clamp01(floatTimer * 1.5f));
+                Color old = bannerStyle.normal.textColor;
+                bannerStyle.normal.textColor = fc;
+                GUI.Label(new Rect(sp.x - 80f, Screen.height - sp.y - rise - 20f, 160f, 40f), $"-{floatDmg}", bannerStyle);
+                bannerStyle.normal.textColor = old;
+            }
+        }
+    }
+
+    void DrawWaveBanner()
+    {
+        if (bannerTimer <= 0f) return;
+        float a = Mathf.Clamp01(bannerTimer / 0.8f); // son 0,8 sn'de solar
+        Color c = bannerStyle.normal.textColor; c.a = a; bannerStyle.normal.textColor = c;
+        GUI.Label(new Rect(0, Screen.height * 0.32f, Screen.width, 60f), bannerText, bannerStyle);
+    }
+
     // ─── Helpers ────────────────────────────────────────────────
     int GetCost(TurretType t) => t == TurretType.MachineGun ? 50 : t == TurretType.SlowTower ? 75 : 180;
 
@@ -240,6 +360,22 @@ public class UIManager : MonoBehaviour
             alignment = TextAnchor.MiddleCenter
         };
         alertStyle.normal.textColor = Color.red;
+
+        bannerStyle = new GUIStyle(GUI.skin.label)
+        {
+            fontSize = 32,
+            fontStyle = FontStyle.Bold,
+            alignment = TextAnchor.MiddleCenter
+        };
+        bannerStyle.normal.textColor = new Color(0.3f, 1f, 0.5f);
+
+        coreAlertStyle = new GUIStyle(GUI.skin.label)
+        {
+            fontSize = 28,
+            fontStyle = FontStyle.Bold,
+            alignment = TextAnchor.MiddleCenter
+        };
+        coreAlertStyle.normal.textColor = new Color(1f, 0.2f, 0.2f);
 
         popupStyle = new GUIStyle(GUI.skin.box);
 

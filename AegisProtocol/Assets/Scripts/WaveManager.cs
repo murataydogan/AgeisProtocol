@@ -43,6 +43,8 @@ public class WaveManager : MonoBehaviour
 
     void Update()
     {
+        if (GameMenu.IsMenuOpen) return;
+
         // Space key to skip prep phase early (GDD rule)
         if (isPrepPhase && Input.GetKeyDown(KeyCode.Space))
         {
@@ -81,6 +83,7 @@ public class WaveManager : MonoBehaviour
             if (currentWaveIndex == 5)
             {
                 Debug.Log("<color=red>WARNING: 2ND GATE ACTIVE! (Red Gate)</color>");
+                if (GridManager.Instance != null) GridManager.Instance.ActivateRedGate();
                 if (UIManager.Instance != null)
                     UIManager.Instance.ShowWarningAlert("UYARI: 2. KAPI AKTIF!", 5f);
             }
@@ -112,7 +115,7 @@ public class WaveManager : MonoBehaviour
             Debug.Log($"<color=green>WAVE {currentWaveIndex} COMPLETED!</color>");
 
             if (GameEconomy.Instance != null)
-                GameEconomy.Instance.CommitWaveScore();
+                GameEconomy.Instance.CommitWaveScore(currentWaveIndex);
         }
 
         Debug.Log("<color=yellow>CONGRATULATIONS! All 7 waves cleared!</color>");
@@ -179,5 +182,10 @@ public class WaveManager : MonoBehaviour
 
         EnemyAI ai = enemyObj.AddComponent<EnemyAI>();
         ai.Setup(type, waypoints);
+
+        // Model varsa kureyi gizleyip onun yerine kullanir (Setup'tan sonra, olcek kesinlesince)
+        ModelLibrary.Attach(enemyObj, type == EnemyType.Swarmer ? "enemy_swarmer"
+                                    : type == EnemyType.Stalker ? "enemy_stalker"
+                                                                : "enemy_brute");
     }
 }

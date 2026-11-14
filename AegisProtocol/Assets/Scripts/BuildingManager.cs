@@ -19,6 +19,7 @@ public class BuildingManager : MonoBehaviour
 
     void Update()
     {
+        if (GameMenu.IsMenuOpen) return;
         HandleKeyboardSelection();
         HandleMouseRaycast();
         HandlePlacementAndCancel();
@@ -150,6 +151,10 @@ public class BuildingManager : MonoBehaviour
         TurretController tc = turret.AddComponent<TurretController>();
         tc.Setup(type);
         cell.placedTurret = turret;
+        ModelLibrary.Attach(turret, type == TurretType.MachineGun ? "turret_machinegun"
+                                  : type == TurretType.SlowTower ? "turret_slow"
+                                                                  : "turret_laser");
+        AegisAudio.Play("build", 0.8f);
 
         Debug.Log($"Built {type} at ({cell.gridX},{cell.gridY}) for {cost} Scrap.");
     }

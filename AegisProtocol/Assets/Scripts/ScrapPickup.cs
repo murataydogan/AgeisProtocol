@@ -53,7 +53,7 @@ public class ScrapPickup : MonoBehaviour
         if (GameEconomy.Instance != null)
             GameEconomy.Instance.AddScrap(scrapAmount);
 
-        Debug.Log($"Scrap collected: +{scrapAmount}");
+        AegisAudio.Play("scrap", 0.6f);
         Destroy(gameObject);
     }
 }

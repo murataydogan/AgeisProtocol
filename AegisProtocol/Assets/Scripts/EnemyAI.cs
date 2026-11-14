@@ -62,7 +62,7 @@ public class EnemyAI : MonoBehaviour
         switch (type)
         {
             case EnemyType.Swarmer:
-                maxHealth = 90f;
+                maxHealth = 80f;
                 armor = 0f;
                 baseSpeed = 1.6f;
                 coreDamagePerSec = 2;
@@ -72,7 +72,7 @@ public class EnemyAI : MonoBehaviour
                 break;
 
             case EnemyType.Stalker:
-                maxHealth = 135f;
+                maxHealth = 125f;
                 armor = 0f;
                 baseSpeed = 2.4f;
                 coreDamagePerSec = 4;
@@ -82,7 +82,7 @@ public class EnemyAI : MonoBehaviour
                 break;
 
             case EnemyType.Brute:
-                maxHealth = 600f;
+                maxHealth = 575f;
                 armor = 6f; // Has armor!
                 baseSpeed = 0.7f;
                 coreDamagePerSec = 8;
@@ -225,6 +225,8 @@ public class EnemyAI : MonoBehaviour
         {
             GameEconomy.Instance.AddPendingScore(scoreReward);
         }
+
+        AegisAudio.Play("enemy_die", 0.5f);
 
         // Spawn Scrap
         SpawnScrapPickup();

@@ -14,6 +14,15 @@ public class GameEconomy : MonoBehaviour
     public int totalScore = 0;
     public int wavePendingScore = 0;
 
+    // Son dalga tamamlanma bilgisi (UI "Dalga Tamamlandi +N" mesaji ve skor sayimi icin)
+    [HideInInspector] public int lastWaveCommit = 0;
+    [HideInInspector] public int lastCommitWave = 0;
+    [HideInInspector] public int commitCounter = 0;
+
+    public const string HighScoreKey = "aegis_highscore";
+    public static int HighScore => PlayerPrefs.GetInt(HighScoreKey, 0);
+    public bool IsNewHighScore { get; private set; }
+
     public event Action<int> OnScrapChanged;
     public event Action<int> OnCoreHealthChanged;
     public event Action<int, int> OnScoreChanged;
@@ -46,6 +55,8 @@ public class GameEconomy : MonoBehaviour
 
     public void DamageCore(int damage)
     {
+        if (coreHealth <= 0) return; // oyun zaten bitti
+        AegisAudio.Play("core_hit", 0.9f, false);
         coreHealth = Mathf.Max(0, coreHealth - damage);
         OnCoreHealthChanged?.Invoke(coreHealth);
 
@@ -62,8 +73,25 @@ public class GameEconomy : MonoBehaviour
         OnScoreChanged?.Invoke(totalScore, wavePendingScore);
     }
 
-    public void CommitWaveScore()
+    // Oyun bitince bir kez cagrilir; toplam skor rekoru gectiyse kaydeder.
+    public bool SaveHighScore()
     {
+        if (totalScore > HighScore)
+        {
+            PlayerPrefs.SetInt(HighScoreKey, totalScore);
+            PlayerPrefs.Save();
+            IsNewHighScore = true;
+        }
+        return IsNewHighScore;
+    }
+
+    public void CommitWaveScore(int wave = 0)
+    {
+        lastWaveCommit = wavePendingScore;
+        lastCommitWave = wave;
+        commitCounter++;
+        AegisAudio.Play("wave_done", 0.8f, false);
+
         totalScore += wavePendingScore;
         wavePendingScore = 0;
         OnScoreChanged?.Invoke(totalScore, wavePendingScore);

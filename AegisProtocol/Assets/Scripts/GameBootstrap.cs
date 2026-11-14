@@ -6,6 +6,8 @@ public class GameBootstrap : MonoBehaviour
 {
     void Awake()
     {
+        SpawnManager<GameMenu>("GameMenu"); // once: timeScale ve menu durumunu belirler
+        SpawnManager<AegisAudio>("AegisAudio");
         SpawnManager<GameEconomy>("GameEconomy");
         SpawnManager<UIManager>("UIManager");
         SpawnManager<GameStateManager>("GameStateManager");
@@ -50,6 +52,7 @@ public class GameBootstrap : MonoBehaviour
             }
 
             eng.AddComponent<EngineerController>();
+            ModelLibrary.Attach(eng, "engineer");
         }
     }
 
